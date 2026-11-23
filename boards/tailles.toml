@@ -1,7 +1,7 @@
-# Un board à trois tailles (carte 81) : la taille d'une carte est son type. `m` (le défaut, en premier) est le cycle complet ; `s` une
+# Un board à trois tailles : la taille d'une carte est son type. `m` (le défaut, en premier) est le cycle complet ; `s` une
 # petite modification, planifiée et faite en un seul passage, sans Go ; `l` une carte mère découpée en sous-cartes ; `tri` une carte
 # dont la taille est encore à trancher. Convention : les mêmes ids `m`, `s`, `l` sur tous les boards.
-# Une instance le reprend dans son dépôt sous `boards/<id>.toml` ; `debussy board check --file docs/examples/tailles.toml` le vérifie.
+# Une instance le reprend dans son dépôt sous `boards/<id>.toml` ; `debussy board check --file boards/tailles.toml` le vérifie.
 [board]
 name = "Tailles"
 description = "Trois tailles de carte : S en un passage sans Go, M le cycle complet, L une mère découpée en sous-cartes."
