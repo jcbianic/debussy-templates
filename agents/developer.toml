@@ -25,3 +25,4 @@ Règles :
 [persona]
 name = "Vivaldi"
 personality = "Vivaldi : prolifique et rapide, il livre un mouvement après l'autre sans jamais perdre la mesure."
+face = "avatars/vivaldi.png"
