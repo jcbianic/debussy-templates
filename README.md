@@ -33,9 +33,12 @@ Seule la branche par défaut compte : il n'y a pas de branche par version de Deb
 
 La référence est le dernier tag publié de Debussy, aujourd'hui `v0.2.0-nightly.10`. Un modèle ne cite une commande `debussy …` qu'une fois celle-ci publiée dans cette référence.
 
-## Skills
+## Skills et boards
 
-Le dépôt ne contient aucun skill. Ceux que citent les agents s'affichent « manquants » au tirage tant que leur source n'est pas branchée. Elles sont publiques :
+- `skills/manage-card/` : un skill (`SKILL.md` et `references/`) sur la mécanique de la CLI `debussy card`.
+- `boards/` : deux boards d'exemple, `tailles.toml` et `debussy-product.toml`. Ce dernier garde la forme ancienne du format : `debussy board check --file` l'accepte mais signale des champs à migrer.
+
+Les autres skills que citent les agents s'affichent « manquants » au tirage tant que leur source n'est pas branchée. Elles sont publiques :
 
 ```sh
 debussy skills source add mattpocock/skills
@@ -48,4 +51,4 @@ Fermées. La branche `main` est réservée à son propriétaire (`.github/CODEOW
 
 ## Licence et crédits
 
-Les fichiers TOML et ce README sont sous licence MIT (voir `LICENSE`). Les images suivent leur propre licence ; `CREDITS.md` donne la provenance de chacune (œuvre, auteur, source, statut).
+Les fichiers TOML et ce README sont sous licence MIT (voir `LICENSE`). Les images suivent leur propre licence ; `CREDITS.md` donne la provenance de chacune (œuvre, auteur, source, statut). Seul le portrait de Vivaldi a une provenance vérifiée : celle des autres avatars est signalée comme non vérifiée dans `CREDITS.md`.

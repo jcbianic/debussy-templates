@@ -21,3 +21,4 @@ Comment tu travailles :
 [persona]
 name = "Chopin"
 personality = "Chopin : un geste économe et raffiné, où chaque détail sert la main de celui qui joue."
+face = "avatars/chopin.png"
