@@ -1,0 +1,206 @@
+# Un board à trois tailles (carte 81) : la taille d'une carte est son type. `m` (le défaut, en premier) est le cycle complet ; `s` une
+# petite modification, planifiée et faite en un seul passage, sans Go ; `l` une carte mère découpée en sous-cartes ; `tri` une carte
+# dont la taille est encore à trancher. Convention : les mêmes ids `m`, `s`, `l` sur tous les boards.
+# Une instance le reprend dans son dépôt sous `boards/<id>.toml` ; `debussy board check --file docs/examples/tailles.toml` le vérifie.
+[board]
+name = "Tailles"
+description = "Trois tailles de carte : S en un passage sans Go, M le cycle complet, L une mère découpée en sous-cartes."
+icon = "rocket"
+color = "orange"
+steward = { agents = "board-steward", brief = """
+Tu es le steward de ce board. Tu regardes ses cartes (`debussy card list --board tailles`) : celles qui attendent une décision du
+Directeur, celles dont le handler ne tourne plus, celles qui n'avancent pas. Tu en rends compte au Directeur en quelques lignes.
+""" }
+
+[[states]]
+id = "framing"
+label = "Cadrage"
+
+[[states]]
+id = "go"
+label = "En attente du Go"
+from = ["framing"]
+when = [{ artifact = "framing" }, { decision = "taille" }]  # le cadrage ne concerne pas `tri`, la taille ne concerne que lui
+
+[[states]]
+id = "build"
+label = "Construction"
+from = ["framing", "go", "validation"]
+when = { decision = "framing" }  # S et L ne déclarent pas cette décision : elle tient d'elle-même
+
+[[states]]
+id = "validation"
+label = "À valider"
+from = ["build"]
+when = [{ artifact = "demo" }, { children = "ended" }]  # la démo ne concerne pas L ; les sous-cartes, seulement une mère
+
+[[states]]
+id = "landing"
+label = "Atterrissage"
+from = ["validation"]
+when = [{ decision = "validation" }, { artifact = "pr" }]
+
+[[states]]
+id = "delivered"
+label = "Livrée"
+from = ["landing"]
+end = "success"
+fold = true
+
+[[states]]
+id = "closed"
+label = "Fermée"
+from = ["framing", "go", "build", "validation", "landing"]
+end = "failure"
+fold = true
+
+[activity]
+late = 60
+
+[targets]  # indicatif (ADR 0078) : rien n'est refusé ; une carte qui dépasse est signalée au steward du board
+cost = { s = 2, m = 8, l = 20 }  # en dollars, par taille
+lead = { s = "2h", m = "2d", l = "10d" }  # de la naissance à la livraison, par taille
+stay = { landing = "15m" }  # une fois prise en charge, par état : l'attente du Directeur et la pause ne comptent pas
+
+[[columns]]
+id = "frame"
+label = "Cadrage"
+states = ["framing", "go"]
+
+[[columns]]
+id = "build"
+label = "Construction"
+states = ["build"]
+
+[[columns]]
+id = "ship"
+label = "Livraison"
+states = ["validation", "landing", "delivered", "closed"]
+
+# M : le cycle complet. Le triage y est facultatif : la carte propose une taille, le Directeur n'a rien à trancher.
+[[types]]
+id = "m"
+label = "M"
+handler = { agents = "card-handler", brief = """
+Tu mènes cette carte de M, de l'idée à la PR : cadrage déposé, « Verdict de cadrage » du Directeur, construction, démo, « Validation »,
+PR. Tu ne décides jamais à sa place. Tu peux déposer un triage (`triage`) pour proposer une autre taille.
+""" }
+
+[[types.artifacts]]
+id = "triage"
+label = "Le triage"
+group = "Cadrage"
+optional = true
+
+[[types.artifacts]]
+id = "framing"
+label = "Le cadrage"
+group = "Verdict"
+
+[[types.artifacts]]
+id = "plan"
+label = "Le plan"
+group = "Verdict"
+optional = true
+
+[[types.artifacts]]
+id = "demo"
+label = "La démo"
+group = "Revue"
+
+[[types.artifacts]]
+id = "pr"
+label = "La PR"
+group = "Livraison"
+form = "link"
+
+[[types.decisions]]
+id = "framing"
+label = "Verdict de cadrage"
+on = ["framing"]
+options = [
+  { id = "go", label = "Go", green = true },
+  { id = "revise", label = "Réviser le cadrage", note = true },
+  { id = "drop", label = "Abandonner", note = true },
+]
+
+[[types.decisions]]
+id = "validation"
+label = "Validation"
+on = ["demo"]
+options = [
+  { id = "ok", label = "Validé", green = true },
+  { id = "fix", label = "Corriger", note = true },
+]
+
+# S : une petite modification, planifiée et faite d'une traite. Pas de Go ni de décision de cadrage, un seul passage en construction.
+[[types]]
+id = "s"
+label = "S"
+states = ["framing", "build", "validation", "landing", "delivered", "closed"]
+from = { build = ["framing"] }
+handler = { agents = "card-handler", brief = """
+Tu mènes cette carte de S seul : un plan court (`plan`), la construction en un passage, la démo, puis la « Validation » du Directeur et la
+PR. Pas de Go. Si le changement dépasse un passage, dis-le au Directeur : la carte passe en M.
+""" }
+
+[[types.artifacts]]
+id = "plan"
+label = "Le plan"
+group = "Verdict"
+
+[[types.artifacts]]
+id = "demo"
+label = "La démo"
+group = "Revue"
+
+[[types.artifacts]]
+id = "pr"
+label = "La PR"
+group = "Livraison"
+form = "link"
+
+[[types.decisions]]
+id = "validation"
+label = "Validation"
+on = ["demo"]
+options = [
+  { id = "ok", label = "Validé", green = true },
+  { id = "fix", label = "Corriger", note = true },
+]
+
+# L : une carte mère. Elle ne construit pas : ses sous-cartes, de taille S ou M, le font ; elle entre en validation quand elles ont fini.
+[[types]]
+id = "l"
+label = "L"
+states = ["framing", "validation", "delivered", "closed"]
+from = { validation = ["framing"], delivered = ["validation"] }
+handler = { agents = "card-handler", brief = """
+Tu mènes cette carte de L : tu la découpes en 2 à 5 sous-cartes de taille S ou M (`debussy card split`), puis tu attends qu'elles aient
+toutes fini. Alors tu passes la mère en `validation` et tu la livres ou la fermes selon leurs issues.
+""" }
+
+# Taille à trancher : la carte propose une taille (`triage`) et le Directeur la tranche ; son handler change alors le type.
+[[types]]
+id = "tri"
+label = "Taille à trancher"
+states = ["framing", "go", "closed"]
+handler = { agents = "card-handler", brief = """
+Tu tries cette carte : dépose le triage (`triage`), la taille que tu proposes et la ligne de la table qui la justifie. Le Directeur tranche
+la « Taille » ; tu changes alors le type de la carte (`s`, `m` ou `l`).
+""" }
+
+[[types.artifacts]]
+id = "triage"
+label = "Le triage"
+group = "Cadrage"
+
+[[types.decisions]]
+id = "taille"
+label = "Taille"
+on = ["triage"]
+options = [
+  { id = "s", label = "S", green = true },
+  { id = "m", label = "M", green = true },
+  { id = "l", label = "L", green = true },
+]
