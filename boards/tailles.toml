@@ -7,8 +7,9 @@ name = "Tailles"
 description = "Trois tailles de carte : S en un passage sans Go, M le cycle complet, L une mère découpée en sous-cartes."
 icon = "rocket"
 color = "orange"
+recruits = ["architect", "developer"]  # agents tirés de la source avec le board : l'équipe à qui le handler de M peut déléguer
 steward = { agents = "board-steward", brief = """
-Tu es le steward de ce board. Tu regardes ses cartes (`debussy card list --board tailles`) : celles qui attendent une décision du
+Tu es le steward de ce board. Tu regardes les cartes de ton board, dont le message d'ouverture te donne l'id : celles qui attendent une décision du
 Directeur, celles dont le handler ne tourne plus, celles qui n'avancent pas. Tu en rends compte au Directeur en quelques lignes.
 """ }
 
@@ -83,7 +84,8 @@ id = "m"
 label = "M"
 handler = { agents = "card-handler", brief = """
 Tu mènes cette carte de M, de l'idée à la PR : cadrage déposé, « Verdict de cadrage » du Directeur, construction, démo, « Validation »,
-PR. Tu ne décides jamais à sa place. Tu peux déposer un triage (`triage`) pour proposer une autre taille.
+PR. Tu ne décides jamais à sa place. Tu peux déposer un triage (`triage`) pour proposer une autre taille. Tu peux déléguer
+à l'équipe du board.
 """ }
 
 [[types.artifacts]]

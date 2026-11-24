@@ -8,7 +8,7 @@ Depuis une instance Debussy :
 
 ```sh
 # 1. brancher le dépôt comme source
-debussy skills source add jcbianic/debussy-templates
+debussy library source add jcbianic/debussy-templates
 
 # 2. tirer un agent
 debussy instance agents pull --source jcbianic/debussy-templates
@@ -31,18 +31,24 @@ Seule la branche par défaut compte : il n'y a pas de branche par version de Deb
 
 ## Compatibilité
 
-La référence est le dernier tag publié de Debussy, aujourd'hui `v0.2.0-nightly.10`. Un modèle ne cite une commande `debussy …` qu'une fois celle-ci publiée dans cette référence.
+La référence est le dernier tag publié de Debussy, aujourd'hui `v0.2.0-nightly.12`. Un modèle ne cite une commande `debussy …` qu'une fois celle-ci publiée dans cette référence.
 
 ## Skills et boards
 
 - `skills/manage-card/` : un skill (`SKILL.md` et `references/`) sur la mécanique de la CLI `debussy card`.
-- `boards/` : deux boards d'exemple, `tailles.toml` et `debussy-product.toml`. Ce dernier garde la forme ancienne du format : `debussy board check --file` l'accepte mais signale des champs à migrer.
+- `boards/` : un seul board, `tailles.toml`, avec ses recrues (`recruits = ["architect", "developer"]`) : les agents `architect` et `developer` de ce dépôt, tirés avec lui.
+
+Règles d'écriture d'un template de board :
+
+- Les postes et les recrues citent des mots (`developer`), jamais un id émis.
+- Aucun brief ne cite un board (`--board`), un dépôt (`--repo`) ou une instance.
+- Pas de `[[test]]` : il est propre à un dépôt.
 
 Les autres skills que citent les agents s'affichent « manquants » au tirage tant que leur source n'est pas branchée. Elles sont publiques :
 
 ```sh
-debussy skills source add mattpocock/skills
-debussy skills source add pbakaus/impeccable
+debussy library source add mattpocock/skills
+debussy library source add pbakaus/impeccable
 ```
 
 ## Contributions
