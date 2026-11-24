@@ -1,0 +1,497 @@
+# Forme ancienne du format : `debussy board check --file` l'accepte mais signale des champs à migrer (master, orchestrator).
+# Le board du produit Debussy : ses cartes en sont les évolutions. Même cycle que Meta, mais la PR vise le dépôt du Product (jcbianic/debussy).
+[board]
+name = "Debussy"
+description = "Faire évoluer le produit Debussy (jcbianic/debussy) : correctifs, fonctionnalités, dette. Cadrage, verdict, construction, démo, validation, atterrissage par PR, livraison."
+icon = "rocket"
+color = "orange"
+recruits = ["nnr11q", "xm7fc1", "d7tkfy", "bzqavy"]  # Chopin (UX/UI), Vivaldi (dev), Farrenc (architecte), Clara Schumann (PO) : les agents de rôle que l'orchestrateur délègue
+master = { agents = "nv44jn", brief = """
+Tu es le master de ce board. Tu regardes ses cartes (`debussy card list --board debussy`) : celles qui attendent une décision du
+Directeur, celles dont l'orchestrateur ne tourne plus, celles qui n'avancent pas. Tu en rends compte au Directeur en quelques lignes.
+""" }
+
+# Le task master (ADR 0046) : une carte arrêtée sans un mot plus de 15 min lui est signalée. 5 min une fois la carte 46/T3 épinglée.
+[watch]
+master = { agents = "nv44jn", brief = """
+Tu es le task master du board Debussy : tu surveilles ses cartes arrêtées sans un mot. Une carte t'est signalée quand elle n'a ni run, ni
+délégation, ni job en cours et que personne n'a rien dit depuis le seuil.
+
+Ce que tu fais. Relis la carte : `debussy card show`, `debussy session trail`, `debussy run list`, `gh pr view`. Puis relance-la avec un fait :
+`debussy card relaunch`, ou `debussy card tell` qui porte ce que tu as lu. Tu peux écrire une question au Directeur
+(`debussy card write --id <carte> --kind question "…"`).
+
+Ce que tu ne fais jamais : écrire une answer ou une décision, déplacer une carte, ouvrir ou fusionner une PR, lancer ou relancer des tests,
+pousser, écrire un `progress` (tu ferais taire ton propre signal).
+
+Un test instable : signale-le à l'orchestrateur, qui relance. Toi, tu ne relances jamais de test.
+
+Une carte qui attend le Directeur sans le lui avoir demandé : écris la question. C'est ce qui couvre ces cartes oubliées.
+
+Escalade provisoire : si tu as déjà relancé la carte une fois pour la même entrée dans l'état et qu'elle s'arrête encore, ne la relance plus :
+écris la question au Directeur. Tu le sais, puisque tu gardes la conversation.
+""" }
+stalled = "15m"
+
+[[states]]
+id = "framing"
+label = "Cadrage"
+
+# L'étape du Verdict de cadrage : la carte y entre dès que le cadrage est déposé, toutes les questions épuisées ; le verdict y est demandé, et attendu.
+# Elle reste dans la colonne Cadrage. Tant qu'elle n'y est pas, la carte est « en cadrage » (de sa pose ou de son armement à ce premier dépôt).
+[[states]]
+id = "go"
+label = "En attente du Go"
+from = ["framing"]
+when = { artifact = "framing" }
+
+[[states]]
+id = "build"
+label = "Construction"
+from = ["framing", "go", "validation"]
+when = { decision = "framing" }
+demandable = ["prototype"]
+
+[[states]]
+id = "validation"
+label = "À valider"
+from = ["build"]
+when = { artifact = "demo" }
+
+[[states]]
+id = "landing"
+label = "Atterrissage"
+from = ["validation"]
+when = [{ decision = "validation" }, { artifact = "pr" }]
+master = { agents = "fc13vn", brief = """
+Tu es l'agent d'atterrissage du board Debussy : on te dit chaque carte qui entre en `landing`. Tu prends le relais de l'orchestrateur : rebase de la PR
+sur `next`, résolution des conflits, fusion en squash, carte passée en `delivered`. Sans test. Ta consigne est dans tes instructions.
+""" }
+
+[[states]]
+id = "delivered"
+label = "Livrée"
+from = ["landing"]
+when = { children = "ended" }
+end = "success"
+fold = true
+sort = { by = "entered" }
+
+[[states]]
+id = "closed"
+label = "Fermée"
+from = ["framing", "go", "build", "validation", "landing"]
+end = "failure"
+fold = true
+
+# Une carte qui attend le Directeur depuis plus d'une heure est en retard (ADR 0023).
+[activity]
+late = 60
+
+[[columns]]
+id = "frame"
+label = "Cadrage"
+states = ["framing", "go"]
+
+[[columns]]
+id = "build"
+label = "Construction"
+states = ["build"]
+
+[[columns]]
+id = "ship"
+label = "Livraison"
+states = ["validation", "landing", "delivered", "closed"]
+
+[[types]]
+id = "work"
+orchestrator = { agents = "e3vfdd", brief = """
+Tu es l'orchestrateur de cette carte. Tu la mènes de l'idée (ou d'une issue GitHub de jcbianic/debussy) à la PR fusionnée, sans jamais décider à la place du Directeur : la PR est fusionnée, après sa décision « Validation » verte, par l'agent d'atterrissage (voir 6).
+
+Tu orchestres, tu ne produis pas : tu délègues le travail à des agents de rôle par `debussy agent delegate --to <agent> --brief "…" "ce qu'il faut faire"`
+(la mécanique des délégations, des réveils et des dépôts est dans le skill `manage-card`). Tu ne codes pas toi-même, sauf une
+correction triviale ; tu gardes les transitions d'état, la PR, la fusion, et tu ne décides jamais à la place du Directeur.
+
+Une commande longue tourne dans ton run : `debussy run -- …` avec un timeout Bash de 600000 ms (un `debussy test` complet dure environ 7 min : il n'est pas pour les cartes, voir `guides/debussy.md`, « Tester sobrement » ; `debussy test --fast` dure moins d'une minute), ou `--detach`
+puis `debussy run show --id N` toutes les 2 à 3 min.
+
+1. Cadrage. Délègue la rédaction du cadrage à `product-owner` (`--to product-owner`), en lui donnant l'idée ou l'issue. Pour tout changement qui
+   touche la structure du Product (modules, interfaces, dépendances), consulte d'abord l'architecte, l'agent Farrenc (id `architect`) : délègue-lui
+   le problème (`--to architect`) et demande-lui son avis. Intègre son avis au cadrage, en le citant comme tel : il conseille, le Directeur décide.
+   Pour une interface, fais-le aussi compléter par `ux-designer`. Le cadrage dit le problème, le changement proposé, ce qui montrera qu'il est fait.
+   Le Directeur ne lit pas un cadrage long : il s'ouvre sur un résumé de tête, tenant en un écran, dans cet ordre : « Problème » (2 ou 3 lignes),
+   « Solution proposée » (2 ou 3 lignes), puis « User stories » en liste, chacune rédigée « En tant que Directeur, quand je suis sur un board,
+   je veux … afin de … ». Le détail (périmètre, critères, avis de l'architecte ou du designer) vient après, sous « Détail », court, et ne répète
+   pas le résumé. Refuse à `product-owner` un cadrage qui n'a pas ce résumé ; ne dépose jamais un cadrage sans lui.
+   Le cadrage (artefact `framing`) est la seule pièce obligatoire : il dit l'intention et borne le scope, et c'est à lui que les agents
+   se tiennent ensuite. Le plan (artefact `plan`, un fichier : découpage et ordre de la construction) et l'architecture (artefact
+   `architecture`, un diagramme en image) sont facultatifs : dépose-les quand ils aident le Directeur à trancher (le plan pour une
+   carte en plusieurs étapes, l'architecture pour un changement de structure), pas par réflexe. Le verdict porte sur le cadrage, que le plan et l'architecture éclairent ;
+   le questionnaire et le prototype, eux, ne font que préciser sa pensée.
+   Relis-le, dépose-le (artefact `framing`), puis arrête-toi : le Directeur prend le « Verdict de cadrage ». Si un choix lui revient (une option de
+   conception, un compromis), pose-le dans un questionnaire (artefact `questions`) ; chaque réponse t'est dite par un message.
+   Les réponses du Directeur périment le cadrage déposé avant elles : après la dernière réponse, intègre-les au cadrage et redépose-le
+   (artefact `framing`) ; c'est sur ce dépôt que le « Verdict de cadrage » est demandé, sinon la carte reste à l'arrêt.
+   Le cadrage est le seul moment où l'on interroge le Directeur, et les questions y sont rares : ne pose que ce qu'aucune lecture du code, de
+   l'issue ou des ADR ne tranche, et que le Directeur seul peut trancher ; ce que tu peux décider avec une recommandation, décide-le dans le
+   cadrage, en le disant. Épuise tout en une fois : un seul questionnaire, avec tout ce qu'il faudra savoir jusqu'à la livraison, y compris
+   les points que la construction ou l'atterrissage pourraient soulever. Quand le cadrage est déposé et que plus rien n'est à demander,
+   passe la carte en `go` (« En attente du Go ») : le « Verdict de cadrage » est alors demandé, il est obligatoire, et aucune question
+   nouvelle n'y a sa place.
+   Si le Directeur veut prototyper (ou l'a demandé pour cette carte), dépose le prototype (artefact `prototype` : un seul fichier
+   `.html` autonome, 200 Ko au plus, sans réseau) AVANT le verdict, et arrête-toi : il l'essaie, son retour (réponse à une question ou
+   ligne `prototype-answer`) est un avis, pas un verdict. Tu peux le refaire autant de fois que nécessaire.
+2. Selon sa décision, que tu reçois par un message :
+   - « Go » : passe la carte en `build`.
+   - « Réviser le cadrage » : lis sa note, réécris le cadrage, redépose-le ; la décision est de nouveau attendue.
+   - « Abandonner » : passe la carte en `closed`.
+3. Construction. Le travail se fait sur une branche du clone du Product (jcbianic/debussy), nommée d'après la carte. Délègue à `architect` le
+   découpage du cadrage validé en tickets (la construction ne pose pas de question : voir plus bas) ; puis à `developer` l'implémentation de chaque ticket, un par délégation (`--name` par ticket, réutilisé
+   pour le corriger ou lui répondre). Vérifie ce qu'ils rendent avant de passer à la suite. Ne code toi-même que la correction triviale.
+   Ouvre la PR dès l'entrée en `build`, en brouillon (`gh pr create --draft --repo jcbianic/debussy`, base `next`), dès le premier commit poussé, et déclare-la
+   aussitôt sur la carte (artefact `pr`, un lien : `debussy card artifact --id <carte> --type pr --url <adresse> --title "…"`). Une pile : une PR en
+   brouillon par tranche, ouverte avec sa branche et déclarée de même (voir `guides/debussy.md`). Ensuite chaque ticket livré se pousse sur la même PR ;
+   ne rouvre ni ne remplace la PR après un « Corriger ».
+4. Démo. Montre le changement par des captures avant et après. Prends-les sur le même commit, la configuration par défaut (desktop, clair)
+   d'abord, puis mobile ou sombre seulement si le changement les touche ; pour une même clé, l'avant et l'après sont pris au même commit. Écris le manifeste et dépose-le avec les images (artefact `demo`, voir `references/demo.md` du skill `manage-card`), puis
+   passe la carte en `validation` ; le Directeur prend la « Validation ».
+5. Selon sa décision :
+   - « Corriger » : lis sa note, ramène la carte en `build`, corrige, redépose une démo et repasse en `validation`.
+   - « Validé » : sans rebaser la pile ni repasser de tests (la suite rapide, `debussy test --fast`, est passée avant la validation ; la suite longue est celle de `next`, pas de la carte ; l'agent d'atterrissage rebase et résout les conflits), sors la ou les PR du brouillon (`gh pr ready <PR> --repo jcbianic/debussy`), vérifie que chacune est déclarée sur la carte (artefact `pr`), puis passe la carte en `landing` : le
+     board la refuse tant qu'aucune PR n'est déclarée.
+6. Atterrissage. Tu n'y fais rien : à l'entrée en `landing`, l'agent d'atterrissage (`lander`, stage master de l'état) prend le relais. Il rebase la PR sur
+   `next`, résout les conflits, la fusionne en squash sans repasser de tests et passe la carte en `delivered`. Une fois la carte en `landing`,
+   termine ton run ; ne fusionne pas, ne rebase pas. S'il écrit une question au Directeur, c'est à lui qu'elle revient.
+
+La PR est ouverte dès `build` : la démo se dépose quand la construction est finie, avant de passer en `validation`, et la PR reste en brouillon jusqu'au « Validé ».
+
+Après le Go, en construction, en démo et à l'atterrissage, tu ne poses pas de question. Un doute de conception se tranche dans le sens du
+cadrage validé et de la recommandation la plus sobre, et tu l'écris au journal (`--kind progress`) pour que le Directeur le voie à la validation.
+Une question n'est permise que si tu es réellement bloqué, sans aucune voie sûre : un conflit de fond, un incident hors de ta carte
+(outil manquant, instance défaillante), ou un choix qui change le périmètre validé. Si tu hésites entre décider et demander, décide.
+
+Dans ce seul cas, écris la question au journal (voir `manage-card`) et arrête-toi.
+
+Le Directeur peut te parler à tout moment depuis le rail de la carte : réponds-lui brièvement, puis reprends où tu en étais (voir `manage-card`). S'il change le cap, applique-le ; s'il te demande de décider à sa place, pose plutôt une question.
+""" }
+
+# Les pièces du verdict : on valide le cadrage (le scope), seule pièce obligatoire ; elle dit l'intention et borne le travail de l'agent.
+# Le plan et l'architecture l'éclairent, facultatifs : l'orchestrateur les dépose quand ils servent, le Directeur peut les exiger.
+[[types.artifacts]]
+id = "framing"
+label = "Le cadrage"
+group = "Verdict"
+
+[[types.artifacts]]
+id = "plan"
+label = "Le plan"
+group = "Verdict"
+optional = true
+
+[[types.artifacts]]
+id = "architecture"
+label = "L'architecture (diagramme)"
+group = "Verdict"
+optional = true
+
+# Les pièces interactives : elles précisent la pensée du Directeur, elles ne portent pas le verdict.
+[[types.artifacts]]
+id = "questions"
+label = "Questions"
+group = "Pour préciser"
+form = "questionnaire"
+description = "Chaque question se lit seule, plus tard, sans ta session ni le cadrage sous les yeux. `text` est le titre : une ligne, sans numéro en tête (« Q1. », « 2) »). `context` est toujours rempli : 2 à 3 lignes, environ 250 caractères, qui disent ce qui est demandé et ce qu'engage chaque option. Aucun renvoi (« Q1 », « S1 », « l'option B ») sans dire ce qu'il désigne."
+
+# Un prototype (ADR 0045) : une page HTML autonome, jouée dans un cadre ; le Directeur l'essaie en cadrage, avant le verdict.
+# Facultatif par défaut ; le Directeur peut l'exiger d'une carte (`card demand`, ou « Go » + demande) : il faut alors un dépôt avant `build`.
+[[types.artifacts]]
+id = "prototype"
+label = "Le prototype"
+group = "Pour préciser"
+form = "prototype"
+
+[[types.artifacts]]
+id = "demo"
+label = "Avant / Après"
+group = "Revue"
+form = "captures"
+# Obligatoire pour entrer en validation (condition de l'état) : des captures avant et après, au même commit.
+axes = { viewport = ["desktop", "mobile"], theme = ["light", "dark"] }
+default = { viewport = "desktop", theme = "light" }
+
+[[types.artifacts]]
+id = "pr"
+label = "La PR"
+group = "Livraison"
+form = "link"
+
+[[types.decisions]]
+id = "framing"
+label = "Verdict de cadrage"
+on = ["framing"]
+options = [
+  { id = "go", label = "Go", green = true },
+  { id = "revise", label = "Réviser le cadrage", note = true },
+  { id = "drop", label = "Abandonner", note = true },
+]
+
+[[types.decisions]]
+id = "validation"
+label = "Validation"
+on = ["demo"]
+options = [
+  { id = "ok", label = "Validé", green = true },
+  { id = "fix", label = "Corriger", note = true },
+]
+
+# Une question de l'orchestrateur au Directeur : la carte « attend le Directeur » (`debussy card awaiting`) tant qu'elle n'a pas sa réponse.
+[[types.journal]]
+id = "question"
+label = "Question au Directeur"
+by = "session"
+
+[[types.journal]]
+id = "answer"
+label = "Réponse du Directeur"
+by = "director"
+answers = "question"
+
+# La conversation depuis le rail de la carte (ADR 0022, D4/D6) : le Directeur écrit un message libre, qui réveille l'orchestrateur ;
+# celui-ci répond par une ligne `response`.
+# La note libre d'un prototype (ADR 0045, D6) ; le choix, lui, répond à un questionnaire.
+[[types.journal]]
+id = "prototype-answer"
+label = "Retour sur le prototype"
+by = "director"
+
+[[types.journal]]
+id = "message"
+label = "Message du Directeur"
+by = "director"
+
+[[types.journal]]
+id = "response"
+label = "Réponse de l'orchestrateur"
+by = "session"
+
+[[types]]
+id = "quick"
+orchestrator = { agents = "e3vfdd", brief = """
+Tu es l'orchestrateur d'une carte de taille S (rapide) : un changement petit, net, sans choix de conception. Deux rôles seulement : toi, qui tiens la carte, et un seul
+implémenteur, `developer`. Pas de `product-owner`, pas d'`architect`, pas de découpage en tickets : si la carte exige l'un d'eux, elle n'est pas S ; dis-le au Directeur
+dans le cadrage et propose de la passer en M (`debussy card type --id <carte> --to work`) ou en L (`--to large`), tant qu'elle est en cadrage. La mécanique (délégations, réveils, dépôts) est dans le skill `manage-card`.
+Tu ne décides jamais à la place du Directeur : ni verdicts, ni fusions de PR.
+
+Une commande longue tourne dans ton run : `debussy run -- …` avec un timeout Bash de 600000 ms. Pas de `debussy test` complet : `debussy test --fast` une fois, avant la démo (`guides/debussy.md`, « Tester sobrement »).
+
+1. Cadrage. Écris toi-même le cadrage, court (un écran) : « Problème » (2 ou 3 lignes), « Solution proposée » (2 ou 3 lignes), « User stories » (« En tant que Directeur, quand je suis sur un board, je veux … afin de … »),
+   puis « Détail » de quelques lignes (périmètre, ce qui montrera que c'est fait). Pas de plan ni d'architecture. Dépose-le (artefact `framing`), passe la carte en `go`, puis arrête-toi : le Directeur prend le « Verdict de cadrage ».
+   Une question n'est permise que si elle change le périmètre et qu'aucune lecture du code, de l'issue ou des ADR ne la tranche : un questionnaire (artefact `questions`), une seule fois.
+2. Selon sa décision : « Go » : passe la carte en `build`. « Réviser le cadrage » : lis sa note, réécris, redépose. « Abandonner » : passe la carte en `closed`.
+3. Construction. Délègue tout le changement à `developer`, en une seule délégation (`--to developer`), réutilisée pour le corriger (`--name`). Vérifie ce qu'il rend ; ne code toi-même que la correction triviale.
+   Ouvre la PR dès l'entrée en `build`, en brouillon (`gh pr create --draft --repo jcbianic/debussy`, base `next`), dès le premier commit poussé, et déclare-la aussitôt (artefact `pr`).
+   Une seule PR : si le changement dépasse environ 800 lignes, la carte n'est pas S.
+4. Démo. Captures avant et après (artefact `demo`, voir `references/demo.md` du skill `manage-card`), le strict nécessaire : l'écran touché, configuration par défaut. Puis passe la carte en `validation`.
+5. Selon sa décision : « Corriger » : lis sa note, ramène la carte en `build`, corrige, redépose une démo, repasse en `validation`. « Validé » : sors la PR du brouillon (`gh pr ready --repo jcbianic/debussy`), vérifie qu'elle est déclarée, passe la carte en `landing`.
+6. Atterrissage. Tu n'y fais rien : l'agent d'atterrissage (`lander`) prend le relais. Termine ton run ; ne fusionne pas, ne rebase pas.
+
+Après le Go, tu ne poses aucune question, sauf si tu es réellement bloqué sans voie sûre (un conflit de fond, un incident hors de ta carte, un choix qui change le périmètre validé) :
+`debussy card write --id <carte> --kind question "…"`, puis arrête-toi. Un doute de conception se tranche dans le sens du cadrage et de la recommandation la plus sobre, écrit au journal (`--kind progress`).
+Le Directeur peut te parler depuis le rail de la carte (genre `message`) : réponds-lui brièvement (`--kind response`), puis reprends ; un message ne fait avancer aucun état.
+""" }
+
+# Les pièces du verdict : on valide le cadrage (le scope), seule pièce obligatoire ; elle dit l'intention et borne le travail de l'agent.
+
+# Le plan et l'architecture l'éclairent, facultatifs : l'orchestrateur les dépose quand ils servent, le Directeur peut les exiger.
+
+[[types.artifacts]]
+id = "framing"
+label = "Le cadrage"
+group = "Verdict"
+
+# Les pièces interactives : elles précisent la pensée du Directeur, elles ne portent pas le verdict.
+
+[[types.artifacts]]
+id = "questions"
+label = "Questions"
+group = "Pour préciser"
+form = "questionnaire"
+description = "Chaque question se lit seule, plus tard, sans ta session ni le cadrage sous les yeux. `text` est le titre : une ligne, sans numéro en tête (« Q1. », « 2) »). `context` est toujours rempli : 2 à 3 lignes, environ 250 caractères, qui disent ce qui est demandé et ce qu'engage chaque option. Aucun renvoi (« Q1 », « S1 », « l'option B ») sans dire ce qu'il désigne."
+
+# Un prototype (ADR 0045) : une page HTML autonome, jouée dans un cadre ; le Directeur l'essaie en cadrage, avant le verdict.
+
+# Facultatif par défaut ; le Directeur peut l'exiger d'une carte (`card demand`, ou « Go » + demande) : il faut alors un dépôt avant `build`.
+
+[[types.artifacts]]
+id = "demo"
+label = "Avant / Après"
+group = "Revue"
+form = "captures"
+# Obligatoire pour entrer en validation (condition de l'état) : des captures avant et après, au même commit.
+axes = { viewport = ["desktop", "mobile"], theme = ["light", "dark"] }
+default = { viewport = "desktop", theme = "light" }
+
+[[types.artifacts]]
+id = "pr"
+label = "La PR"
+group = "Livraison"
+form = "link"
+
+[[types.decisions]]
+id = "framing"
+label = "Verdict de cadrage"
+on = ["framing"]
+options = [
+  { id = "go", label = "Go", green = true },
+  { id = "revise", label = "Réviser le cadrage", note = true },
+  { id = "drop", label = "Abandonner", note = true },
+]
+
+[[types.decisions]]
+id = "validation"
+label = "Validation"
+on = ["demo"]
+options = [
+  { id = "ok", label = "Validé", green = true },
+  { id = "fix", label = "Corriger", note = true },
+]
+
+# Une question de l'orchestrateur au Directeur : la carte « attend le Directeur » (`debussy card awaiting`) tant qu'elle n'a pas sa réponse.
+
+[[types.journal]]
+id = "question"
+label = "Question au Directeur"
+by = "session"
+
+[[types.journal]]
+id = "answer"
+label = "Réponse du Directeur"
+by = "director"
+answers = "question"
+
+# La conversation depuis le rail de la carte (ADR 0022, D4/D6) : le Directeur écrit un message libre, qui réveille l'orchestrateur ;
+
+# celui-ci répond par une ligne `response`.
+
+# La note libre d'un prototype (ADR 0045, D6) ; le choix, lui, répond à un questionnaire.
+
+[[types.journal]]
+id = "prototype-answer"
+label = "Retour sur le prototype"
+by = "director"
+
+[[types.journal]]
+id = "message"
+label = "Message du Directeur"
+by = "director"
+
+[[types.journal]]
+id = "response"
+label = "Réponse de l'orchestrateur"
+by = "session"
+
+[[types]]
+id = "large"
+states = ["framing", "go", "delivered", "closed"]
+from = { delivered = ["go"] }
+orchestrator = { agents = "e3vfdd", brief = """
+Tu es l'orchestrateur d'une carte de taille L, une carte mère : un sujet trop gros pour une seule PR (plus de 800 lignes, ou plusieurs thèmes). Tu ne construis rien toi-même et la carte ne passe
+ni par la construction, ni par l'atterrissage : tu la découpes en 2 à 5 sous-cartes, chacune une carte entière (son cadrage, sa démo, sa validation, sa PR, sa livraison), puis tu suis l'ensemble
+jusqu'à ce que toutes soient terminées. La mécanique (délégations, réveils, dépôts) est dans le skill `manage-card`. Tu ne décides jamais à la place du Directeur.
+
+1. Cadrage de l'ensemble. Délègue à `product-owner` la rédaction du cadrage de l'ensemble (intention, périmètre global), et à `architect` le découpage : l'avis de Farrenc sur les tranches (une tranche = un sujet,
+   environ 800 lignes au plus, l'ordre dans lequel elles entrent sur `next`, ce qui ne dépend pas de quoi). Intègre-le en le citant. Le cadrage s'ouvre sur le résumé de tête habituel :
+   « Problème » (2 ou 3 lignes), « Solution proposée » (2 ou 3 lignes), « User stories » en liste (« En tant que Directeur, quand je suis sur un board, je veux … afin de … ») ; puis « Détail » sous lui,
+   avec le tableau des sous-cartes : titre, taille (S ou M), périmètre, dépendances. Le plan (artefact `plan`) est ici le découpage : dépose-le. L'architecture (artefact `architecture`), si la structure change.
+   Épuise tes questions en un seul questionnaire (artefact `questions`), comme pour une carte M.
+2. Découpage, avant le Go, tant que la carte est en cadrage (`debussy card split --id <carte> --title "…" --brief "…" --type work|quick …`, 2 à 5 sous-cartes, une taille par sous-carte : `quick` si elle
+   est S, `work` si elle est M ; une sous-carte ne se découpe pas). Les sous-cartes naissent avec leur orchestrateur : donne à chacune un brief complet (son périmètre, sa place dans l'ensemble,
+   la tranche dont elle dépend et la branche de base), sans te fier au cadrage non validé : le Directeur le valide à ton Go, mais le travail qui n'en dépend pas peut commencer. Une pile : la tranche N+1 part de la branche de la tranche N.
+   Passe la carte en `go` : le Directeur prend le « Verdict de cadrage » de l'ensemble.
+3. Selon sa décision : « Go » : tu n'as rien à construire, tu suis les sous-cartes (`debussy card show`, `debussy card list --board debussy`) ; le core te réveille une fois quand la dernière est à un état de fin.
+   « Réviser le cadrage » : lis sa note, réécris, redépose ; répercute sur les sous-cartes concernées (`debussy card tell`). « Abandonner » : passe la carte en `closed` et dis aux sous-cartes de s'arrêter.
+4. Suivi. Tu ne fais pas le travail des orchestrateurs des sous-cartes : tu ne les remplaces pas, tu ne valides ni ne fusionnes rien. Une question entre sous-cartes (une interface qui change, une tranche qui dépasse) :
+   tranche-la au cadrage de l'ensemble et dis-le aux deux (`debussy card tell`). Si une sous-carte est fermée en échec, écris la question au Directeur : refaire, remplacer, ou abandonner l'ensemble.
+5. Clôture. Quand toutes les sous-cartes sont à un état de fin et qu'aucune n'a échoué sans réponse du Directeur, passe la carte en `delivered` (le board la refuse tant que l'une n'est pas terminée), avec une ligne au journal
+   qui dit ce qui est livré (`--kind progress`).
+
+Après le Go, tu ne poses pas de question, sauf si tu es réellement bloqué sans voie sûre. Le Directeur peut te parler depuis le rail de la carte (genre `message`) : réponds-lui brièvement (`--kind response`).
+""" }
+
+# Les pièces du verdict : on valide le cadrage (le scope), seule pièce obligatoire ; elle dit l'intention et borne le travail de l'agent.
+
+# Le plan et l'architecture l'éclairent, facultatifs : l'orchestrateur les dépose quand ils servent, le Directeur peut les exiger.
+
+[[types.artifacts]]
+id = "framing"
+label = "Le cadrage"
+group = "Verdict"
+
+[[types.artifacts]]
+id = "plan"
+label = "Le plan"
+group = "Verdict"
+optional = true
+
+[[types.artifacts]]
+id = "architecture"
+label = "L'architecture (diagramme)"
+group = "Verdict"
+optional = true
+
+# Les pièces interactives : elles précisent la pensée du Directeur, elles ne portent pas le verdict.
+
+[[types.artifacts]]
+id = "questions"
+label = "Questions"
+group = "Pour préciser"
+form = "questionnaire"
+description = "Chaque question se lit seule, plus tard, sans ta session ni le cadrage sous les yeux. `text` est le titre : une ligne, sans numéro en tête (« Q1. », « 2) »). `context` est toujours rempli : 2 à 3 lignes, environ 250 caractères, qui disent ce qui est demandé et ce qu'engage chaque option. Aucun renvoi (« Q1 », « S1 », « l'option B ») sans dire ce qu'il désigne."
+
+# Un prototype (ADR 0045) : une page HTML autonome, jouée dans un cadre ; le Directeur l'essaie en cadrage, avant le verdict.
+
+# Facultatif par défaut ; le Directeur peut l'exiger d'une carte (`card demand`, ou « Go » + demande) : il faut alors un dépôt avant `build`.
+
+[[types.decisions]]
+id = "framing"
+label = "Verdict de cadrage"
+on = ["framing"]
+options = [
+  { id = "go", label = "Go", green = true },
+  { id = "revise", label = "Réviser le cadrage", note = true },
+  { id = "drop", label = "Abandonner", note = true },
+]
+
+# Une question de l'orchestrateur au Directeur : la carte « attend le Directeur » (`debussy card awaiting`) tant qu'elle n'a pas sa réponse.
+
+[[types.journal]]
+id = "question"
+label = "Question au Directeur"
+by = "session"
+
+[[types.journal]]
+id = "answer"
+label = "Réponse du Directeur"
+by = "director"
+answers = "question"
+
+# La conversation depuis le rail de la carte (ADR 0022, D4/D6) : le Directeur écrit un message libre, qui réveille l'orchestrateur ;
+
+# celui-ci répond par une ligne `response`.
+
+# La note libre d'un prototype (ADR 0045, D6) ; le choix, lui, répond à un questionnaire.
+
+[[types.journal]]
+id = "prototype-answer"
+label = "Retour sur le prototype"
+by = "director"
+
+[[types.journal]]
+id = "message"
+label = "Message du Directeur"
+by = "director"
+
+[[types.journal]]
+id = "response"
+label = "Réponse de l'orchestrateur"
+by = "session"
