@@ -8,7 +8,7 @@ Depuis une instance Debussy :
 
 ```sh
 # 1. brancher le dépôt comme source
-debussy skills source add jcbianic/debussy-templates
+debussy library source add jcbianic/debussy-templates
 
 # 2. tirer un agent
 debussy instance agents pull --source jcbianic/debussy-templates
@@ -25,7 +25,7 @@ Seule la branche par défaut compte : il n'y a pas de branche par version de Deb
 
 - Un fichier par modèle, sans index ni métadonnées à côté.
 - Agents : `agents/<mot>.toml`.
-- Avatars : `avatars/<mot>.png`, image matricielle de 2 Mio au plus. Jamais de SVG.
+- Avatars : `avatars/<collection>/<mot>.png`, image matricielle de 2 Mio au plus. Jamais de SVG. Un seul niveau de sous-dossier : la collection (aujourd'hui `musiciens`). Deux collections ne doivent pas porter un avatar du même nom : le tirage refuserait. Côté instance, l'avatar tiré reste à plat, dans `avatars/<mot>.png`.
 - Aucune ligne `template` dans un agent.
 - Pas de `README` ni de `CREDITS` dans `avatars/` : il s'afficherait comme un avatar. Les crédits sont à la racine, dans `CREDITS.md`.
 
@@ -41,8 +41,8 @@ La référence est le dernier tag publié de Debussy, aujourd'hui `v0.2.0-nightl
 Les autres skills que citent les agents s'affichent « manquants » au tirage tant que leur source n'est pas branchée. Elles sont publiques :
 
 ```sh
-debussy skills source add mattpocock/skills
-debussy skills source add pbakaus/impeccable
+debussy library source add mattpocock/skills
+debussy library source add pbakaus/impeccable
 ```
 
 ## Contributions
