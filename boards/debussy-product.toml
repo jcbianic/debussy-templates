@@ -63,6 +63,7 @@ id = "landing"
 label = "Atterrissage"
 from = ["validation"]
 when = [{ decision = "validation" }, { artifact = "pr" }]
+steward_relieve_after = 5
 master = { agents = "fc13vn", brief = """
 Tu es l'agent d'atterrissage du board Debussy : on te dit chaque carte qui entre en `landing`. Tu prends le relais de l'orchestrateur : rebase de la PR
 sur `next`, résolution des conflits, fusion en squash, carte passée en `delivered`. Sans test. Ta consigne est dans tes instructions.
