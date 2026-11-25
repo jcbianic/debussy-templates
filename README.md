@@ -1,6 +1,6 @@
 # debussy-templates
 
-Modèles d'agents, avatars et palettes à tirer dans une instance [Debussy](https://github.com/jcbianic/debussy). Le dépôt ne contient que des fichiers de données : rien à installer, rien à compiler.
+Modèles d'agents, avatars, palettes et styles à tirer dans une instance [Debussy](https://github.com/jcbianic/debussy). Le dépôt ne contient que des fichiers de données : rien à installer, rien à compiler.
 
 ## Brancher le dépôt et tirer
 
@@ -27,19 +27,24 @@ Seule la branche par défaut compte : il n'y a pas de branche par version de Deb
 - Agents : `agents/<mot>.toml`.
 - Avatars : `avatars/<mot>.png`, image matricielle de 2 Mio au plus. Jamais de SVG.
 - Palettes : `palettes/<mot>.toml`, un `name` et deux tables `[light]` et `[dark]` qui donnent chaque jeton couleur de la console (hexadécimal, `rgb()` ou `hsl()` seulement ; `docked` opaque). Ni style, ni CSS : les jetons composés sont ceux de la console (ADR 0093, D6). Une erreur se lit `BAD_PALETTE`, avec la clé et le mode.
+- Styles : `styles/<mot>.toml`, un `name`, une `base` (l'un des styles de la console) et des clés à valeurs typées et bornées (polices, rayons, titres, densité, élévation, verre, texture). Aucun CSS : une clé inconnue ou une valeur hors bornes se lit `BAD_STYLE`, avec la clé (ADR 0093, D10).
 - Aucune ligne `template` dans un agent.
 - Pas de `README` ni de `CREDITS` dans `avatars/` : il s'afficherait comme un avatar. Les crédits sont à la racine, dans `CREDITS.md`.
 
 ## Compatibilité
 
-La référence est le dernier tag publié de Debussy, aujourd'hui `v0.2.0-nightly.12`. Un modèle ne cite une commande `debussy …` qu'une fois celle-ci publiée dans cette référence.
+La référence est le dernier tag publié de Debussy, aujourd'hui `v0.2.0-nightly.12`. Les styles ne se tirent qu'avec la première nightly qui contient la carte 166 (#977) : aucun tag ne la contient encore, `nightly.12` non plus. Un modèle ne cite une commande `debussy …` qu'une fois celle-ci publiée dans cette référence.
 
 ## Palettes
 
-- `palettes/lanterne-8-bits.toml` : la nuit de la lanterne, indigo et or ; papier crème en clair. Le style « pixel » n'est pas tirable : seule la palette l'est.
+- `palettes/lanterne-8-bits.toml` : la nuit de la lanterne, indigo et or ; papier crème en clair.
 - `palettes/la-mer.toml` : estampe bleu de Prusse, vermillon et écume, nettement distincte de la palette Estampe livrée avec Debussy.
 
 Dans chacune, « humain » est éloigné de « échec », et le texte et les états gardent un contraste d'au moins 4,5:1 sur le fond et la surface, en clair comme en sombre. Les palettes se tirent depuis la Bibliothèque d'une instance en `nightly.12` ou plus récente, puis se choisissent dans Apparence.
+
+## Styles
+
+- `styles/lanterne-8-bits.toml` : le style pixel de Lanterne, sur la base `estampe` : trait d'un pixel, panneaux carrés, titres en capitales monospace, ombre dure de 4 px, trame de 8 px. Il va avec la palette du même nom, sans en dépendre.
 
 ## Skills et boards
 
