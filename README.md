@@ -49,6 +49,8 @@ Dans chacune, « humain » est éloigné de « échec », et le texte et les ét
 ## Skills et boards
 
 - `skills/manage-card/` : un skill (`SKILL.md` et `references/`) sur la mécanique de la CLI `debussy card`.
+- `skills/manage-board/` : un skill sur la configuration d'un board (états, équipe, apparence, types de carte, steward) avec `debussy board` : lire, valider (`board check`), puis éditer.
+- `skills/manage-agent/` : un skill sur les agents avec `debussy agent` (`list`, `show`, `create`, `merge`) et le format de `agents/<mot>.toml`.
 - `boards/` : deux boards d'exemple, `tailles.toml` et `debussy-product.toml`. Ce dernier garde la forme ancienne du format : `debussy board check --file` l'accepte mais signale des champs à migrer.
 
 Les autres skills que citent les agents s'affichent « manquants » au tirage tant que leur source n'est pas branchée. Elles sont publiques :
