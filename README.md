@@ -8,7 +8,7 @@ Depuis une instance Debussy :
 
 ```sh
 # 1. brancher le dépôt comme source
-debussy skills source add jcbianic/debussy-templates
+debussy library source add jcbianic/debussy-templates
 
 # 2. tirer un agent
 debussy instance agents pull --source jcbianic/debussy-templates
@@ -56,8 +56,8 @@ Dans chacune, « humain » est éloigné de « échec », et le texte et les ét
 Les autres skills que citent les agents s'affichent « manquants » au tirage tant que leur source n'est pas branchée. Elles sont publiques :
 
 ```sh
-debussy skills source add mattpocock/skills
-debussy skills source add pbakaus/impeccable
+debussy library source add mattpocock/skills
+debussy library source add pbakaus/impeccable
 ```
 
 ## Contributions
