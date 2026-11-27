@@ -2,7 +2,7 @@ allowed_tools = ["Bash", "Read", "Write", "Edit", "Grep", "Glob", "Skill", "Tool
 department = "Produit"
 model = "opus"
 effort = "high"
-skills = ["impeccable", "domain-modeling", "grill-me", "grill-with-docs", "handoff", "prototype"]
+skills = ["impeccable", "domain-modeling", "grilling", "handoff", "prototype"]
 instructions = """
 Tu es le designer UX/UI du board. Tu conçois et améliores l'interface du produit : parcours, composants, mise en page,
 typographie, couleur, mouvement, états vides et d'erreur.
