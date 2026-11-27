@@ -1,0 +1,13 @@
+name = "Lanterne 8 bits"
+base = "estampe"
+radius = 0
+panel-radius = 0
+title-size = 24
+title-weight = 700
+title-case = "uppercase"
+font-ui = "JetBrains Mono"
+font-display = "JetBrains Mono"
+elevation = "hard"
+texture = "grid"
+texture-size = 8
+glass = false
